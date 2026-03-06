@@ -1,322 +1,194 @@
-// ================================
-// DATA
-// ================================
-
 let tasks = JSON.parse(localStorage.getItem("tasks")) || []
+let activeTask = null
 
-function saveData(){
-    localStorage.setItem("tasks", JSON.stringify(tasks))
+function save(){
+localStorage.setItem("tasks",JSON.stringify(tasks))
 }
-
-// ================================
-// ADD TASK
-// ================================
 
 function addTask(){
 
-    const name = document.getElementById("taskName").value
-    const reminder = document.getElementById("reminder").value
-    const repeat = document.getElementById("repeat").value
+let name=document.getElementById("taskInput").value
+let repeat=document.getElementById("repeat").value
+let reminder=document.getElementById("reminder").value
 
-    if(name.trim() === ""){
-        alert("Enter task name")
-        return
-    }
+if(!name)return
 
-    const task = {
+tasks.push({
+name:name,
+repeat:repeat,
+reminder:reminder,
+days:Array(30).fill(false),
+streak:0,
+level:1
+})
 
-        id: Date.now(),
-        name: name,
+document.getElementById("taskInput").value=""
 
-        reminder: reminder,
-        repeat: repeat,
-
-        days: new Array(30).fill(0),
-
-        streak: 0,
-        level: 1
-    }
-
-    tasks.push(task)
-
-    document.getElementById("taskName").value = ""
-
-    saveData()
-    renderTasks()
-    renderHeatmap()
-
+save()
+renderTasks()
+renderHeatmap()
 }
-
-// ================================
-// DELETE TASK
-// ================================
-
-function deleteTask(id){
-
-    tasks = tasks.filter(t => t.id !== id)
-
-    saveData()
-    renderTasks()
-    renderHeatmap()
-
-}
-
-// ================================
-// EDIT TASK
-// ================================
-
-function editTask(id){
-
-    const task = tasks.find(t => t.id === id)
-
-    const newName = prompt("Edit task", task.name)
-
-    if(newName){
-        task.name = newName
-    }
-
-    saveData()
-    renderTasks()
-
-}
-
-// ================================
-// TOGGLE DAY
-// ================================
-
-function toggleDay(taskId, index){
-
-    const task = tasks.find(t => t.id === taskId)
-
-    task.days[index] = task.days[index] ? 0 : 1
-
-    calculateStreak(task)
-    calculateLevel(task)
-
-    saveData()
-    renderTasks()
-    renderHeatmap()
-
-}
-
-// ================================
-// STREAK SYSTEM
-// ================================
-
-function calculateStreak(task){
-
-    let streak = 0
-
-    for(let i = task.days.length-1; i >=0; i--){
-
-        if(task.days[i] === 1){
-            streak++
-        }
-        else{
-            break
-        }
-
-    }
-
-    task.streak = streak
-}
-
-// ================================
-// LEVEL SYSTEM
-// ================================
-
-function calculateLevel(task){
-
-    const total = task.days.reduce((a,b)=>a+b,0)
-
-    task.level = Math.floor(total/10)+1
-
-}
-
-// ================================
-// RENDER TASKS
-// ================================
 
 function renderTasks(){
 
-    const container = document.getElementById("taskList")
+let list=document.getElementById("taskList")
+list.innerHTML=""
 
-    container.innerHTML = ""
+tasks.forEach((t,i)=>{
 
-    tasks.forEach(task => {
+let div=document.createElement("div")
+div.className="task"
 
-        const box = document.createElement("div")
-        box.className = "task"
+div.innerHTML=`
+<span onclick="openTracker(${i})">${t.name}</span>
 
-        const title = document.createElement("h3")
-        title.innerText = task.name
+<div>
+<button onclick="editTask(${i})">Edit</button>
+<button onclick="deleteTask(${i})">Delete</button>
+</div>
+`
 
-        const streak = document.createElement("p")
-        streak.innerText = "🔥 Streak: " + task.streak
+list.appendChild(div)
 
-        const level = document.createElement("p")
-        level.innerText = "⭐ Level: " + task.level
-
-        const reminder = document.createElement("p")
-        reminder.innerText = "Reminder: " + task.reminder
-
-        const repeat = document.createElement("p")
-        repeat.innerText = "Repeat: " + task.repeat
-
-        const grid = document.createElement("div")
-        grid.className = "tracker"
-
-        task.days.forEach((d,i)=>{
-
-            const cell = document.createElement("div")
-
-            cell.className = "day"
-
-            if(d === 1){
-                cell.classList.add("done")
-            }
-
-            cell.onclick = ()=>toggleDay(task.id,i)
-
-            grid.appendChild(cell)
-
-        })
-
-        const editBtn = document.createElement("button")
-        editBtn.innerText = "Edit"
-        editBtn.onclick = ()=>editTask(task.id)
-
-        const delBtn = document.createElement("button")
-        delBtn.innerText = "Delete"
-        delBtn.onclick = ()=>deleteTask(task.id)
-
-        box.appendChild(title)
-        box.appendChild(streak)
-        box.appendChild(level)
-        box.appendChild(reminder)
-        box.appendChild(repeat)
-        box.appendChild(grid)
-        box.appendChild(editBtn)
-        box.appendChild(delBtn)
-
-        container.appendChild(box)
-
-    })
+})
 
 }
 
-// ================================
-// 12 COLOR HEATMAP
-// ================================
+function deleteTask(i){
+
+tasks.splice(i,1)
+
+save()
+renderTasks()
+renderHeatmap()
+
+}
+
+function editTask(i){
+
+let newName=prompt("Edit Task",tasks[i].name)
+
+if(newName){
+tasks[i].name=newName
+save()
+renderTasks()
+}
+
+}
+
+function openTracker(i){
+
+activeTask=i
+
+let grid=document.createElement("div")
+grid.className="grid"
+
+tasks[i].days.forEach((d,day)=>{
+
+let box=document.createElement("div")
+box.className="day"
+
+if(d)box.classList.add("done")
+
+box.onclick=()=>toggleDay(day)
+
+grid.appendChild(box)
+
+})
+
+let tracker=document.getElementById("tracker")
+tracker.innerHTML=""
+tracker.appendChild(grid)
+
+}
+
+function toggleDay(day){
+
+let task=tasks[activeTask]
+
+task.days[day]=!task.days[day]
+
+updateStreak(task)
+
+save()
+
+openTracker(activeTask)
+
+renderHeatmap()
+
+}
+
+function updateStreak(task){
+
+let streak=0
+
+for(let i=0;i<task.days.length;i++){
+
+if(task.days[i])streak++
+else streak=0
+
+}
+
+task.streak=streak
+
+task.level=Math.floor(streak/5)+1
+
+}
 
 function renderHeatmap(){
 
-    const map = document.getElementById("heatmap")
+let heat=document.getElementById("heatmap")
 
-    if(!map) return
+heat.innerHTML=""
 
-    map.innerHTML = ""
+for(let i=0;i<365;i++){
 
-    for(let i=0;i<365;i++){
+let box=document.createElement("div")
+box.className="box"
 
-        const cell = document.createElement("div")
-        cell.className = "heat"
+let total=0
 
-        let count = 0
+tasks.forEach(t=>{
+if(i<t.days.length && t.days[i]) total++
+})
 
-        tasks.forEach(task=>{
+let level=Math.min(total,12)
 
-            const index = i % 30
+if(level>0)box.classList.add("c"+level)
 
-            if(task.days[index]){
-                count++
-            }
-
-        })
-
-        const level = Math.min(11,count)
-
-        cell.style.background =
-        `rgba(128,0,128,${level/11})`
-
-        map.appendChild(cell)
-
-    }
+heat.appendChild(box)
 
 }
 
-// ================================
-// WEEKLY DASHBOARD
-// ================================
+}
 
-function weeklyDashboard(){
+function renderWeekly(){
 
-    let total = 0
+let w=document.getElementById("weekly")
+w.innerHTML=""
 
-    tasks.forEach(task=>{
+let grid=document.createElement("div")
+grid.className="grid"
 
-        for(let i=23;i<30;i++){
+for(let i=0;i<7;i++){
 
-            if(task.days[i]){
-                total++
-            }
+let box=document.createElement("div")
+box.className="day"
 
-        }
-
-    })
-
-    alert("Weekly completions: "+total)
+grid.appendChild(box)
 
 }
 
-// ================================
-// YEARLY DASHBOARD
-// ================================
-
-function yearlyDashboard(){
-
-    let total = 0
-
-    tasks.forEach(task=>{
-
-        total += task.days.reduce((a,b)=>a+b,0)
-
-    })
-
-    alert("Total yearly completions: "+total)
+w.appendChild(grid)
 
 }
 
-// ================================
-// REMINDER SYSTEM
-// ================================
+function toggleDark(){
 
-function checkReminders(){
-
-    const now = new Date()
-
-    const h = now.getHours().toString().padStart(2,"0")
-    const m = now.getMinutes().toString().padStart(2,"0")
-
-    const current = `${h}:${m}`
-
-    tasks.forEach(task=>{
-
-        if(task.reminder === current){
-
-            alert("Reminder: "+task.name)
-
-        }
-
-    })
+document.body.classList.toggle("dark")
 
 }
-
-setInterval(checkReminders,60000)
-
-// ================================
-// INIT
-// ================================
 
 renderTasks()
 renderHeatmap()
+renderWeekly()
